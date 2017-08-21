@@ -1,5 +1,5 @@
 import React from 'react';
-import {   StatusBar, StyleSheet, Text, TextInput, Button, Modal, ToastAndroid, FlatList, View } from 'react-native';
+import {   StatusBar, StyleSheet, Text, TextInput, Button, Modal, ToastAndroid, FlatList, View, ViewPagerAndroid } from 'react-native';
 import {
   FormLabel,
   Header,
@@ -174,14 +174,15 @@ class Body extends React.Component {
       content = 
         <View>
           <Text>Add flat list here {this.props.id.toString()}</Text>
+
         </View>;
     else
       content = <Text>Log in first to view todos</Text>;
 
     return(
-      <View style={styles.Body}>
+      <View style={styles.body}>
         {content}
-      </View>  
+      </View>
     );
   }  
 }
@@ -192,9 +193,7 @@ const styles = StyleSheet.create({
   view: {
       backgroundColor:'#e0f2f1',
       flex: 1,
-      paddingTop: 50,
-      paddingLeft: 25,
-      paddingRight: 25
+      marginTop: 70
     },
     textTitle:{
       fontSize: 24,
