@@ -7,6 +7,7 @@ import {
   List,
   ListItem
 } from 'react-native-elements';
+import {PagerTabIndicator, IndicatorViewPager, PagerTitleIndicator, PagerDotIndicator} from 'rn-viewpager';
 import axios from 'axios';
 
 export default class App extends React.Component {
@@ -105,6 +106,7 @@ export default class App extends React.Component {
           </View>
         </Modal>
         <Header
+          statusBarProps={{ transparent: true }}
           leftComponent={{ icon: 'menu' }}
           rightComponent={{ 
             icon: this.state.sessionId ? 'add' : 'input',
@@ -116,7 +118,7 @@ export default class App extends React.Component {
   }
 
   validate(username, password){
-    var re = ^[a-zA-Z0-9]{1,}$;
+    const re = new RegExp('^[a-zA-Z0-9]{1,}$');
     ToastAndroid.show('Don\'t include special characters!', ToastAndroid.LONG)
     return (re.test(username) === re.test(password) === true);
   }
@@ -126,7 +128,7 @@ export default class App extends React.Component {
       username: this.state.username,
       password: this.state.password
     };
-    if(validate(this.state.username, this.state.password)){
+    if(this.validate(this.state.username, this.state.password)){
         axios.post('http://192.168.254.111:3009/api/users/login', payload)
           .then(response => {
             ToastAndroid.show(response.data.message, ToastAndroid.SHORT);
@@ -153,7 +155,7 @@ export default class App extends React.Component {
       username: this.state.username,
       password: this.state.password
     };
-    if(validate(this.state.username, this.state.password)){
+    if(this.validate(this.state.username, this.state.password)){
       axios.post('http://192.168.254.111:3009/api/users/register', payload)
         .then(response => {
           ToastAndroid.show(response.data.message, ToastAndroid.SHORT);
@@ -184,17 +186,34 @@ class Body extends React.Component {
       content = 
         <View>
           <Text>Add flat list here {this.props.id.toString()}</Text>
-
         </View>;
     else
       content = <Text>Log in first to view todos</Text>;
 
-    return(
-      <View style={styles.body}>
-        {content}
-      </View>
-    );
-  }  
+        return (
+            <View style={{flex:1, marginTop: 70}}>
+                <IndicatorViewPager
+                    style={{height:600, flexDirection: 'column-reverse'}}
+                    indicator={this._renderTitleIndicator()}
+                >
+                    <View style={{backgroundColor:'cadetblue'}}>
+                        <Text>page one</Text>
+                    </View>
+                    <View style={{backgroundColor:'cornflowerblue'}}>
+                        <Text>page two</Text>
+                    </View>
+                    <View style={{backgroundColor:'#1AA094'}}>
+                        <Text>page three</Text>
+                    </View>
+                </IndicatorViewPager>
+            </View>
+        );
+    }
+
+    _renderTitleIndicator() {
+        return <PagerTitleIndicator titles={['ALL', 'MINE', 'THEIRS']} />;
+    }
+  
 }
 
 
