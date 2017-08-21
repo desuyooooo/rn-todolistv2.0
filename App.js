@@ -41,19 +41,21 @@ export default class App extends React.Component {
         <TextInput
             onChangeText={(password) => this.setState({password})}
             placeholder='Password'
+            secureTextEntry={true}
             style={styles.textInput}
             value={this.state.password}
         />
         <Button 
             color='#e91e63'
             style={styles.button}
+            onPress={this.loginPress.bind(this)}
             title='LOG IN'
         />
-        <Text> or </Text>
+        <Text style={styles.textTitle}> or </Text>
         <Button 
             color='#e91e63'
             style={styles.button}
-            onPress={()=>this.setState({modalContent: 'register'})}
+            onPress={()=>this.setState({modalContent: 'register', username:'', password:''})}
             title='CREATE NEW ACCOUNT'
         /> 
         </View>;
@@ -70,6 +72,7 @@ export default class App extends React.Component {
         <TextInput
             onChangeText={(password) => this.setState({password})}
             placeholder='Password'
+            secureTextEntry={true}
             style={styles.textInput}
             value={this.state.password}
         />
@@ -77,12 +80,13 @@ export default class App extends React.Component {
             color='#e91e63'
             style={styles.button}
             title='REGISTER'
+            onPress={this.registerPress.bind(this)}
         />
-        <Text> or </Text>
+        <Text style={styles.textTitle}> or </Text>
         <Button 
             color='#e91e63'
             style={styles.button}
-            onPress={()=>this.setState({modalContent: 'login'})}
+            onPress={()=>this.setState({modalContent: 'login', username:'', password:''})}
             title='LOG IN USING AN EXISTING ACCOUNT'
         /> 
       </View>;
@@ -91,21 +95,22 @@ export default class App extends React.Component {
 
     return(
       <View style={styles.mainView}>
+        <Modal
+          animationType="slide"
+          onRequestClose={() => this.setState({ modalVisible: false })}
+          transparent={false}
+          visible={this.state.modalVisible}>
+          <View style={styles.Modal}>
+            {modalContent}
+          </View>
+        </Modal>
         <Header
           leftComponent={{ icon: 'menu' }}
           rightComponent={{ 
             icon: this.state.sessionId ? 'add' : 'input',
             onPress: () => this.setState({ modalVisible: true }) }}
         />
-        <Modal
-          animationType="slide"
-          onRequestClose={() => this.setState({ modalVisible: false })}
-          transparent={false}
-          visible={this.state.modalVisible}>
-          {modalContent}
-        </Modal>
-        <Body id={this.state.sessionId}/>
-
+        <Body id={this.state.sessionId} />
       </View>       
     );
   }
@@ -118,21 +123,67 @@ export default class App extends React.Component {
     axios.post('http://192.168.254.111:3009/api/users/login', payload)
       .then(response => {
         ToastAndroid.show(response.data.message, ToastAndroid.SHORT);
-
-        this.setState({
+        try{
+          if(response.data.id)
+            this.setState({
+              sessionId: response.data.id, 
+              modalVisible: false,
+              username: '',
+              password: '',
+              modalContent: 'add'
+            });
+        }catch(e){
           
-          modalVisible: false
-        })
+        }
       })
       .catch(err => ToastAndroid.show(err.response.data.error, ToastAndroid.LONG))
       .then(this.getTodos);
   }
+
+  registerPress(){
+    const payload = {
+      username: this.state.username,
+      password: this.state.password
+    };
+    axios.post('http://192.168.254.111:3009/api/users/register', payload)
+      .then(response => {
+        ToastAndroid.show(response.data.message, ToastAndroid.SHORT);
+        this.loginPress();
+      })
+      .catch(err => ToastAndroid.show(err.response.data.error, ToastAndroid.LONG))
+      .then(this.getTodos);
   }
 
 }
 
 class Body extends React.Component {
+  constructor(props, ctx){
+    super(props, ctx);
+  }
   
+  /*
+  componentOnMount(){
+    try{
+      axios.post('http://192.168.254.111:3009/api/todos/', {userid: this.props.id})
+    }
+  }
+  */
+
+  render(){
+    if(this.props.id)
+      content = 
+        <View>
+          <Text>Add flat list here {this.props.id.toString()}</Text>
+        </View>;
+    else
+      content = <Text>Log in first to view todos</Text>;
+
+    return(
+      <View style={styles.Body}>
+        {content}
+      </View>  
+    );
+  }  
 }
 
 
@@ -148,16 +199,23 @@ const styles = StyleSheet.create({
     textTitle:{
       fontSize: 24,
       textAlign: 'center',
+      paddingTop: 10,
       paddingBottom: 10
     },
     textInput: {
       height: 46, 
       fontSize: 24,
-      marginLeft: 10,
-      marginRight: 10,
       padding: 10
     },
     button: {
       padding: 10
+    },
+    Body: {
+      marginTop: 70,
+      padding: 10
+    },
+    Modal: {
+      marginTop: 70,
+      padding: 20
     }
 })
