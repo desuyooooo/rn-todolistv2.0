@@ -115,29 +115,37 @@ export default class App extends React.Component {
     );
   }
 
+  validate(username, password){
+    var re = ^[a-zA-Z0-9]{1,}$;
+    ToastAndroid.show('Don\'t include special characters!', ToastAndroid.LONG)
+    return (re.test(username) === re.test(password) === true);
+  }
+
   loginPress(){
     const payload = {
       username: this.state.username,
       password: this.state.password
     };
-    axios.post('http://192.168.254.111:3009/api/users/login', payload)
-      .then(response => {
-        ToastAndroid.show(response.data.message, ToastAndroid.SHORT);
-        try{
-          if(response.data.id)
-            this.setState({
-              sessionId: response.data.id, 
-              modalVisible: false,
-              username: '',
-              password: '',
-              modalContent: 'add'
-            });
-        }catch(e){
-          
-        }
-      })
-      .catch(err => ToastAndroid.show(err.response.data.error, ToastAndroid.LONG))
-      .then(this.getTodos);
+    if(validate(this.state.username, this.state.password)){
+        axios.post('http://192.168.254.111:3009/api/users/login', payload)
+          .then(response => {
+            ToastAndroid.show(response.data.message, ToastAndroid.SHORT);
+            try{
+              if(response.data.id)
+                this.setState({
+                  sessionId: response.data.id, 
+                  modalVisible: false,
+                  username: '',
+                  password: '',
+                  modalContent: 'add'
+                });
+            }catch(e){
+              
+            }
+          })
+          .catch(err => ToastAndroid.show(err.response.data.error, ToastAndroid.LONG))
+          .then(this.getTodos);
+    }
   }
 
   registerPress(){
@@ -145,13 +153,15 @@ export default class App extends React.Component {
       username: this.state.username,
       password: this.state.password
     };
-    axios.post('http://192.168.254.111:3009/api/users/register', payload)
-      .then(response => {
-        ToastAndroid.show(response.data.message, ToastAndroid.SHORT);
-        this.loginPress();
-      })
-      .catch(err => ToastAndroid.show(err.response.data.error, ToastAndroid.LONG))
-      .then(this.getTodos);
+    if(validate(this.state.username, this.state.password)){
+      axios.post('http://192.168.254.111:3009/api/users/register', payload)
+        .then(response => {
+          ToastAndroid.show(response.data.message, ToastAndroid.SHORT);
+          this.loginPress();
+        })
+        .catch(err => ToastAndroid.show(err.response.data.error, ToastAndroid.LONG))
+        .then(this.getTodos);
+    }
   }
 
 }
