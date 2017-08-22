@@ -62,7 +62,7 @@ export default class App extends React.Component {
           <Text>Assign to:</Text>
           <Picker
             selectedValue={(this.state.assigned_to)?this.state.assigned_to:this.state.sessionId}
-            onValueChange={(itemValue, itemIndex) => this.setState({assigned_to: itemValue})}>
+            onValueChange={(itemValue, itemIndex) => this.setState({assigned_to: (itemValue)?itemValue:this.state.sessionId})}>
             {this.state.users.map((user)=>{
               return <Picker.Item key={user.key} value={user.key} label={(user.key==this.state.sessionId)?user.username + ' (me)':user.username}/>
             })}
@@ -173,7 +173,7 @@ export default class App extends React.Component {
                   data={this.state.todos}
                   onRefresh={this.getTodos}
                   refreshing={this.state.refreshing}
-                  renderItem={({item}) => this._renderMyTodos}
+                  renderItem={this._renderMyTodos.bind(this)}
                   />
               </View>
               <View style={{backgroundColor:'#1AA094'}}>
@@ -181,7 +181,7 @@ export default class App extends React.Component {
                   data={this.state.todos}
                   onRefresh={this.getTodos}
                   refreshing={this.state.refreshing}
-                  renderItem={({item}) => this._renderTheirTodos}
+                  renderItem={this._renderTheirTodos.bind(this)}
                   />
               </View>
           </IndicatorViewPager>
