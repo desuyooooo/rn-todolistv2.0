@@ -167,6 +167,7 @@ export default class App extends React.Component {
     }else{
       ToastAndroid.show('Don\'t include special characters!', ToastAndroid.LONG);
     }
+  }
 }
 
 class Body extends React.Component {
