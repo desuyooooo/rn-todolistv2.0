@@ -9,6 +9,8 @@ import {
 } from 'react-native-elements';
 import axios from 'axios';
 
+const api = 'http://192.168.254.111:3009';
+
 export default class App extends React.Component {
   constructor(props, ctx){
     super(props, ctx);
@@ -116,8 +118,7 @@ export default class App extends React.Component {
   }
 
   validate(username, password){
-    var re = ^[a-zA-Z0-9]{1,}$;
-    ToastAndroid.show('Don\'t include special characters!', ToastAndroid.LONG)
+    const re = new RegExp('^[a-zA-Z0-9]{1,}$');
     return (re.test(username) === re.test(password) === true);
   }
 
@@ -126,8 +127,8 @@ export default class App extends React.Component {
       username: this.state.username,
       password: this.state.password
     };
-    if(validate(this.state.username, this.state.password)){
-        axios.post('http://192.168.254.111:3009/api/users/login', payload)
+    if(this.validate(this.state.username, this.state.password)){
+        axios.post(api + '/api/users/login', payload)
           .then(response => {
             ToastAndroid.show(response.data.message, ToastAndroid.SHORT);
             try{
@@ -145,6 +146,8 @@ export default class App extends React.Component {
           })
           .catch(err => ToastAndroid.show(err.response.data.error, ToastAndroid.LONG))
           .then(this.getTodos);
+    }else{
+      ToastAndroid.show('Don\'t include special characters!', ToastAndroid.LONG)
     }
   }
 
@@ -153,17 +156,17 @@ export default class App extends React.Component {
       username: this.state.username,
       password: this.state.password
     };
-    if(validate(this.state.username, this.state.password)){
-      axios.post('http://192.168.254.111:3009/api/users/register', payload)
+    if(this.validate(this.state.username, this.state.password)){
+      axios.post(api + '/api/users/register', payload)
         .then(response => {
           ToastAndroid.show(response.data.message, ToastAndroid.SHORT);
           this.loginPress();
         })
-        .catch(err => ToastAndroid.show(err.response.data.error, ToastAndroid.LONG))
+        .catch(err => ToastAndroid.show(err.response.data.message, ToastAndroid.LONG))
         .then(this.getTodos);
+    }else{
+      ToastAndroid.show('Don\'t include special characters!', ToastAndroid.LONG);
     }
-  }
-
 }
 
 class Body extends React.Component {
