@@ -1,5 +1,5 @@
 import React from 'react';
-import {   StatusBar, StyleSheet, Text, TextInput, Button, Modal, ToastAndroid, FlatList, View, ViewPagerAndroid } from 'react-native';
+import {   StatusBar, StyleSheet, Text, TextInput, Button, Modal, ToastAndroid, FlatList, View, ViewPagerAndroid, Picker } from 'react-native';
 import {
   FormLabel,
   Header,
@@ -10,55 +10,96 @@ import {
 import {PagerTabIndicator, IndicatorViewPager, PagerTitleIndicator, PagerDotIndicator} from 'rn-viewpager';
 import axios from 'axios';
 
+const api = 'http://192.168.254.111:3009';
+
 export default class App extends React.Component {
   constructor(props, ctx){
     super(props, ctx);
+
+    this.loginPress = this.loginPress.bind(this);
+    this.registerPress = this.registerPress.bind(this);
+    this.addTodo = this.addTodo.bind(this);
+    this.getTodos = this.getTodos.bind(this);
+    this._renderUsers = this._renderUsers.bind(this);
+
     this.state = {
       sessionId: null,
       modalContent: 'login',
       modalVisible: false,
       username: null,
-      password: null
-    }
+      password: null,
+      todos: [],
+      users: [],
+      refreshing: false,
+      title: '',
+      description: '',
+      assigned_to: null
+    };
+  }
+
+  componentDidMount() {
+    setTimeout(() => {
+      this._renderUsers()
+    }, 5000)
   }
 
   render(){
-    const session = this.state.sessionId;
-
     switch(this.state.modalContent){
       case 'add':
-        modalContent = <Text>add</Text>;
+        modalContent = 
+        <View>
+          <Text style={styles.textTitle}>Add a Todo</Text>
+          <TextInput
+            onChangeText={(title) => this.setState({title})}
+            placeholder='Title'
+            style={styles.textInput}
+            value={this.state.title} />
+          <TextInput
+            onChangeText={(description) => this.setState({description})}
+            placeholder='Description'
+            style={styles.textInput}
+            value={this.state.description} />
+          <Text>Assign to:</Text>
+          <Picker
+            selectedValue={(this.state.assigned_to)?this.state.assigned_to:this.state.sessionId}
+            onValueChange={(itemValue, itemIndex) => this.setState({assigned_to: itemValue})}>
+            {this.state.users.map((user)=>{
+              return <Picker.Item key={user.key} value={user.key} label={(user.key==this.state.sessionId)?user.username + ' (me)':user.username}/>
+            })}
+          </Picker>
+          <Button 
+            color='#e91e63'
+            style={styles.button}
+            onPress={this.addTodo}
+            title='ADD TODO' />
+        </View>;
         break;
       case 'login':
         modalContent = 
         <View>
-        <Text style={styles.textTitle}>Log In</Text>
-        <TextInput
-          onChangeText={(username) => this.setState({username})}
-          placeholder='Username'
-          style={styles.textInput}
-          value={this.state.username}
-        />
-        <TextInput
-            onChangeText={(password) => this.setState({password})}
-            placeholder='Password'
-            secureTextEntry={true}
+          <Text style={styles.textTitle}>Log In</Text>
+          <TextInput
+            onChangeText={(username) => this.setState({username})}
+            placeholder='Username'
             style={styles.textInput}
-            value={this.state.password}
-        />
-        <Button 
-            color='#e91e63'
-            style={styles.button}
-            onPress={this.loginPress.bind(this)}
-            title='LOG IN'
-        />
-        <Text style={styles.textTitle}> or </Text>
-        <Button 
-            color='#e91e63'
-            style={styles.button}
-            onPress={()=>this.setState({modalContent: 'register', username:'', password:''})}
-            title='CREATE NEW ACCOUNT'
-        /> 
+            value={this.state.username} />
+          <TextInput
+              onChangeText={(password) => this.setState({password})}
+              placeholder='Password'
+              secureTextEntry={true}
+              style={styles.textInput}
+              value={this.state.password} />
+          <Button 
+              color='#e91e63'
+              style={styles.button}
+              onPress={this.loginPress}
+              title='LOG IN' />
+          <Text style={styles.textTitle}> or </Text>
+          <Button 
+              color='#e91e63'
+              style={styles.button}
+              onPress={()=>this.setState({modalContent: 'register', username:'', password:''})}
+              title='CREATE NEW ACCOUNT'/> 
         </View>;
         break;
       case 'register':
@@ -81,7 +122,7 @@ export default class App extends React.Component {
             color='#e91e63'
             style={styles.button}
             title='REGISTER'
-            onPress={this.registerPress.bind(this)}
+            onPress={this.registerPress}
         />
         <Text style={styles.textTitle}> or </Text>
         <Button 
@@ -107,29 +148,93 @@ export default class App extends React.Component {
         </Modal>
         <Header
           statusBarProps={{ transparent: true }}
-          leftComponent={{ icon: 'menu' }}
+          leftComponent={{  }}
           rightComponent={{ 
             icon: this.state.sessionId ? 'add' : 'input',
-            onPress: () => this.setState({ modalVisible: true }) }}
+            onPress: () => this.setState({ modalVisible: true })
+             }}
         />
-        <Body id={this.state.sessionId} />
+        <View style={{flex:1, marginTop: 70}}>
+          <IndicatorViewPager
+              style={{height:600, flexDirection: 'column-reverse'}}
+              indicator={this._renderTitleIndicator()}>
+              <View style={{backgroundColor:'cadetblue'}}>
+                <FlatList
+                  data={this.state.todos}
+                  onRefresh={this.getTodos}
+                  refreshing={this.state.refreshing}
+                  renderItem={
+                      ({item}) => <Text>{item.title}</Text>
+                  }
+                  />
+              </View>
+              <View style={{backgroundColor:'cornflowerblue'}}>
+                <FlatList
+                  data={this.state.todos}
+                  onRefresh={this.getTodos}
+                  refreshing={this.state.refreshing}
+                  renderItem={({item}) => this._renderMyTodos}
+                  />
+              </View>
+              <View style={{backgroundColor:'#1AA094'}}>
+                <FlatList
+                  data={this.state.todos}
+                  onRefresh={this.getTodos}
+                  refreshing={this.state.refreshing}
+                  renderItem={({item}) => this._renderTheirTodos}
+                  />
+              </View>
+          </IndicatorViewPager>
+        </View>
       </View>       
     );
   }
 
-  validate(username, password){
+  _renderMyTodos({item}){
+    if (item.assigned_to === this.state.sessionId){
+        return <Text>{item.title}</Text>
+    }
+  }
+
+  _renderTheirTodos({item}){
+    if (item.assigned_by === this.state.sessionId){
+        return <Text>{item.title}</Text>
+    }
+  }
+
+  _renderTitleIndicator() {
+    return <PagerTitleIndicator titles={['ALL', 'MINE', 'THEIRS']} />;
+  }
+
+  _renderUsers() {
+    axios.get(api + '/api/users')
+      .then(response => {
+        const users = response.data;
+
+        this.setState({
+          users: users.map(function (user){
+            return {
+              key: user.id,
+              username: user.username
+            }
+          })
+        })
+        
+      });
+  }
+
+  validate(username, password) {
     const re = new RegExp('^[a-zA-Z0-9]{1,}$');
-    ToastAndroid.show('Don\'t include special characters!', ToastAndroid.LONG)
     return (re.test(username) === re.test(password) === true);
   }
 
-  loginPress(){
+  loginPress() {
     const payload = {
       username: this.state.username,
       password: this.state.password
     };
     if(this.validate(this.state.username, this.state.password)){
-        axios.post('http://192.168.254.111:3009/api/users/login', payload)
+        axios.post(api + '/api/users/login', payload)
           .then(response => {
             ToastAndroid.show(response.data.message, ToastAndroid.SHORT);
             try{
@@ -146,7 +251,9 @@ export default class App extends React.Component {
             }
           })
           .catch(err => ToastAndroid.show(err.response.data.error, ToastAndroid.LONG))
-          .then(this.getTodos);
+          .then(this.getTodos)
+    }else{
+      ToastAndroid.show('Don\'t include special characters!', ToastAndroid.LONG)
     }
   }
 
@@ -156,67 +263,69 @@ export default class App extends React.Component {
       password: this.state.password
     };
     if(this.validate(this.state.username, this.state.password)){
-      axios.post('http://192.168.254.111:3009/api/users/register', payload)
+      axios.post(api + '/api/users/register', payload)
         .then(response => {
           ToastAndroid.show(response.data.message, ToastAndroid.SHORT);
           this.loginPress();
         })
-        .catch(err => ToastAndroid.show(err.response.data.error, ToastAndroid.LONG))
-        .then(this.getTodos);
+        .catch(err => ToastAndroid.show(err.response.data.message, ToastAndroid.LONG))
+        .then(this.getTodos)
+    }else{
+      ToastAndroid.show('Don\'t include special characters!', ToastAndroid.LONG);
     }
   }
 
+  addTodo(){
+    axios.post(api + '/api/todos/', 
+      { title: this.state.title, 
+        description: this.state.description, 
+        assigned_by: this.state.sessionId, 
+        assigned_to: this.state.assigned_to
+      })
+      .then(response => {
+        ToastAndroid.show(response.data.message, ToastAndroid.SHORT);
+
+        this.setState({
+          title: '',
+          description: '',
+          assigned_to: 0,
+          modalVisible: false
+        })
+      })
+      .catch(err => ToastAndroid.show(err.response.data.error, ToastAndroid.LONG))
+      .then(this.getTodos);
+  }
+
+  getTodos(){
+    this.setState({ refreshing: true });
+
+    axios.post(api + '/api/todos/all', {userid: this.state.sessionId})
+    .then(response => {
+      const todos = response.data;
+      
+      this.setState({
+        refreshing: false,
+        todos: todos.map(function (todo) {
+          return {
+            key: todo.id,
+            title: todo.title,
+            description: todo.description,
+            done: !!todo.done,
+            date_created: todo.date_created,
+            date_modified: todo.date_modified,
+            assigned_by: todo.assigned_by,
+            assigned_to: todo.assigned_to
+          };
+        })
+      });
+    })
+    .catch(err => {
+      this.setState({ refreshing: false });
+      ToastAndroid.show(err.toString(), ToastAndroid.SHORT);
+    });
+
+  }
 }
-
-class Body extends React.Component {
-  constructor(props, ctx){
-    super(props, ctx);
-  }
-  
-  /*
-  componentOnMount(){
-    try{
-      axios.post('http://192.168.254.111:3009/api/todos/', {userid: this.props.id})
-    }
-  }
-  */
-
-  render(){
-    if(this.props.id)
-      content = 
-        <View>
-          <Text>Add flat list here {this.props.id.toString()}</Text>
-        </View>;
-    else
-      content = <Text>Log in first to view todos</Text>;
-
-        return (
-            <View style={{flex:1, marginTop: 70}}>
-                <IndicatorViewPager
-                    style={{height:600, flexDirection: 'column-reverse'}}
-                    indicator={this._renderTitleIndicator()}
-                >
-                    <View style={{backgroundColor:'cadetblue'}}>
-                        <Text>page one</Text>
-                    </View>
-                    <View style={{backgroundColor:'cornflowerblue'}}>
-                        <Text>page two</Text>
-                    </View>
-                    <View style={{backgroundColor:'#1AA094'}}>
-                        <Text>page three</Text>
-                    </View>
-                </IndicatorViewPager>
-            </View>
-        );
-    }
-
-    _renderTitleIndicator() {
-        return <PagerTitleIndicator titles={['ALL', 'MINE', 'THEIRS']} />;
-    }
-  
-}
-
-
 
 const styles = StyleSheet.create({
   view: {
