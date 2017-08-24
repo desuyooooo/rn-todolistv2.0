@@ -1,6 +1,7 @@
 import React from 'react';
 import {   StatusBar, StyleSheet, Text, TextInput, Button, Modal, ToastAndroid, FlatList, View, ViewPagerAndroid, Picker } from 'react-native';
 import {
+  CheckBox,
   FormLabel,
   Header,
   Icon,
@@ -18,9 +19,12 @@ export default class App extends React.Component {
 
     this.loginPress = this.loginPress.bind(this);
     this.registerPress = this.registerPress.bind(this);
+    this.logoutPress = this.logoutPress.bind(this);
     this.addTodo = this.addTodo.bind(this);
     this.getTodos = this.getTodos.bind(this);
     this._renderUsers = this._renderUsers.bind(this);
+    this._renderMyTodos = this._renderMyTodos.bind(this);
+    this._renderTheirTodos = this._renderTheirTodos.bind(this);
 
     this.state = {
       sessionId: null,
@@ -33,14 +37,9 @@ export default class App extends React.Component {
       refreshing: false,
       title: '',
       description: '',
-      assigned_to: null
+      assigned_to: null,
+      style: {}
     };
-  }
-
-  componentDidMount() {
-    setTimeout(() => {
-      this._renderUsers()
-    }, 5000)
   }
 
   render(){
@@ -61,8 +60,10 @@ export default class App extends React.Component {
             value={this.state.description} />
           <Text>Assign to:</Text>
           <Picker
-            selectedValue={(this.state.assigned_to)?this.state.assigned_to:this.state.sessionId}
-            onValueChange={(itemValue, itemIndex) => this.setState({assigned_to: (itemValue)?itemValue:this.state.sessionId})}>
+            selectedValue={this.state.assigned_to}
+            onValueChange={
+              (itemValue, itemIndex) => 
+              this.setState({assigned_to: (itemValue) ? itemValue : this.state.sessionId })}>
             {this.state.users.map((user)=>{
               return <Picker.Item key={user.key} value={user.key} label={(user.key==this.state.sessionId)?user.username + ' (me)':user.username}/>
             })}
@@ -135,6 +136,12 @@ export default class App extends React.Component {
       break;
     }
 
+    if (this.state.sessionId){
+      leftComponent = {icon: 'exit-to-app', onPress: this.logoutPress}
+    }else{
+      leftComponent = null;
+    }
+
     return(
       <View style={styles.mainView}>
         <Modal
@@ -148,11 +155,11 @@ export default class App extends React.Component {
         </Modal>
         <Header
           statusBarProps={{ transparent: true }}
-          leftComponent={{  }}
+          leftComponent={ leftComponent }
           rightComponent={{ 
             icon: this.state.sessionId ? 'add' : 'input',
             onPress: () => this.setState({ modalVisible: true })
-             }}
+            }}
         />
         <View style={{flex:1, marginTop: 70}}>
           <IndicatorViewPager
@@ -163,9 +170,7 @@ export default class App extends React.Component {
                   data={this.state.todos}
                   onRefresh={this.getTodos}
                   refreshing={this.state.refreshing}
-                  renderItem={
-                      ({item}) => <Text>{item.title}</Text>
-                  }
+                  renderItem={this._renderAllTodos.bind(this)}
                   />
               </View>
               <View style={{backgroundColor:'cornflowerblue'}}>
@@ -173,7 +178,7 @@ export default class App extends React.Component {
                   data={this.state.todos}
                   onRefresh={this.getTodos}
                   refreshing={this.state.refreshing}
-                  renderItem={this._renderMyTodos.bind(this)}
+                  renderItem={this._renderMyTodos}
                   />
               </View>
               <View style={{backgroundColor:'#1AA094'}}>
@@ -181,8 +186,11 @@ export default class App extends React.Component {
                   data={this.state.todos}
                   onRefresh={this.getTodos}
                   refreshing={this.state.refreshing}
-                  renderItem={this._renderTheirTodos.bind(this)}
+                  renderItem={this._renderTheirTodos}
                   />
+              </View>
+              <View style={{backgroundColor:'#1AA094'}}>
+                <Text>logs</Text>
               </View>
           </IndicatorViewPager>
         </View>
@@ -190,20 +198,24 @@ export default class App extends React.Component {
     );
   }
 
+  _renderAllTodos({item}){
+    return <Todo item={item} getTodos={this.getTodos} sessionId={this.state.sessionId}/>
+  }
+
   _renderMyTodos({item}){
     if (item.assigned_to === this.state.sessionId){
-        return <Text>{item.title}</Text>
+        return <Todo item={item} getTodos={this.getTodos} sessionId={this.state.sessionId}/>
     }
   }
 
   _renderTheirTodos({item}){
-    if (item.assigned_by === this.state.sessionId){
-        return <Text>{item.title}</Text>
+    if (item.assigned_by === this.state.sessionId && item.assigned_to !== this.state.sessionId){
+        return <Todo item={item}  getTodos={this.getTodos} sessionId={this.state.sessionId}/>
     }
   }
 
   _renderTitleIndicator() {
-    return <PagerTitleIndicator titles={['ALL', 'MINE', 'THEIRS']} />;
+    return <PagerTitleIndicator titles={['ALL', 'MINE', 'THEIRS', 'LOGS']} />;
   }
 
   _renderUsers() {
@@ -244,7 +256,8 @@ export default class App extends React.Component {
                   modalVisible: false,
                   username: '',
                   password: '',
-                  modalContent: 'add'
+                  modalContent: 'add',
+                  assigned_to: response.data.id
                 });
             }catch(e){
               
@@ -252,6 +265,7 @@ export default class App extends React.Component {
           })
           .catch(err => ToastAndroid.show(err.response.data.error, ToastAndroid.LONG))
           .then(this.getTodos)
+          .then(this._renderUsers)
     }else{
       ToastAndroid.show('Don\'t include special characters!', ToastAndroid.LONG)
     }
@@ -269,14 +283,25 @@ export default class App extends React.Component {
           this.loginPress();
         })
         .catch(err => ToastAndroid.show(err.response.data.message, ToastAndroid.LONG))
-        .then(this.getTodos)
     }else{
       ToastAndroid.show('Don\'t include special characters!', ToastAndroid.LONG);
     }
   }
 
+  logoutPress(){
+    this.setState({
+      sessionId: null,
+      modalContent: 'login',
+      modalVisible: false,
+      username: null,
+      password: null,
+      todos: [],
+      users: []
+    })
+  }
+
   addTodo(){
-    axios.post(api + '/api/todos/', 
+    axios.post(api + '/api/todos/add', 
       { title: this.state.title, 
         description: this.state.description, 
         assigned_by: this.state.sessionId, 
@@ -288,18 +313,19 @@ export default class App extends React.Component {
         this.setState({
           title: '',
           description: '',
-          assigned_to: 0,
+          assigned_to: this.state.sessionId,
           modalVisible: false
         })
       })
       .catch(err => ToastAndroid.show(err.response.data.error, ToastAndroid.LONG))
-      .then(this.getTodos);
+      .then(this._renderUsers)
+      .then(this.getTodos)
   }
 
   getTodos(){
     this.setState({ refreshing: true });
 
-    axios.post(api + '/api/todos/all', {userid: this.state.sessionId})
+    axios.post(api + '/api/todos/', {userid: this.state.sessionId})
     .then(response => {
       const todos = response.data;
       
@@ -314,7 +340,9 @@ export default class App extends React.Component {
             date_created: todo.date_created,
             date_modified: todo.date_modified,
             assigned_by: todo.assigned_by,
-            assigned_to: todo.assigned_to
+            name_assigned_by: todo.name_assigned_by,
+            assigned_to: todo.assigned_to,
+            name_assigned_to: todo.name_assigned_to
           };
         })
       });
@@ -325,6 +353,192 @@ export default class App extends React.Component {
     });
 
   }
+}
+
+class Todo extends React.Component{
+  constructor(props, ctx){
+    super(props, ctx);
+
+    this.deleteItem = this.deleteItem.bind(this);
+    this.updateItem = this.updateItem.bind(this);
+    this.checkItem = this.checkItem.bind(this);
+    this.pressItem = this.pressItem.bind(this);
+    this.addComment = this.addComment.bind(this);
+    this.getComments = this.getComments.bind(this);
+
+    this.state = {
+      sessionId: this.props.sessionId,
+      item: this.props.item,
+      title: this.props.item.title,
+      description: this.props.item.description,
+      modalVisible: false,
+      editable: false,
+      refreshing: false,
+      comment: '',
+      comments: []
+    }
+  }
+
+  componentDidMount(){
+    this.getComments();
+  }
+
+  render(){
+    if(this.state.editable){
+      content =
+        <View>
+          <Button 
+              color='#e91e63'
+              title='SAVE CHANGES'
+              onPress={this.updateItem}/>
+          <Text></Text>
+          <Button 
+              color='#e91e63'
+              title='CANCEL'
+              onPress={()=>this.setState({editable: false, title: this.state.item.title, description: this.state.item.description})}/>
+        </View>;
+    }else{
+      content = 
+        <View>
+          <Button 
+              color='#e91e63'
+              title='EDIT'
+              onPress={()=>this.setState({editable: true})}/>
+          <Text></Text>
+          <Button 
+              color='#e91e63'
+              title='DELETE'
+              onPress={this.deleteItem}/>
+        </View>;
+    }
+
+    return(
+      <View>
+        <CheckBox 
+          checked={this.state.item.done}
+          onIconPress={this.checkItem}
+          onPress={this.pressItem}
+          textStyle={this.state.style}
+          title={this.state.item.title}
+        />
+        <Modal
+          animationType="slide"
+          onRequestClose={() => this.setState({ modalVisible: false, editable: false })}
+          transparent={false}
+          visible={this.state.modalVisible}>
+          <View style={{padding: 10}}>
+            <FormLabel>TITLE</FormLabel>
+            <TextInput 
+              style={{height: 30, fontSize: 20, paddingBottom: 5}} 
+              editable={this.state.editable} 
+              onChangeText={(title) => this.setState({title})}
+              value={this.state.title}
+              />
+            <FormLabel>DESCRIPTION</FormLabel>
+            <TextInput 
+              style={{height: 30, fontSize: 20, paddingBottom: 5}}
+              editable={this.state.editable}
+              onChangeText={(description) => this.setState({description})}
+              value={this.state.description}/>
+            <FormLabel>{`ASSIGNED BY: ${this.state.item.name_assigned_by}     ASSIGNED TO: ${this.state.item.name_assigned_to}`}</FormLabel>
+            <FormLabel>{`DATE CREATED: ${this.state.item.date_created}`}</FormLabel>
+            {
+            //<FormLabel>{`DATE MODIFIED: ${(this.state.item.date_modified)?this.state.item.date_modified:'N/A'}`}</FormLabel>}
+            }
+            <View style={{marginTop: 10, marginBottom: 10}}>
+              {content}
+            </View>
+            <View style={{height: 280, marginTop: 10}}>
+            <View style={{justifyContent: 'space-between', flexDirection: 'row'}}>
+               <TextInput
+                style={{width: 300, paddingBottom:5}} 
+                editable={!this.state.editable}
+                onChangeText={(comment) => this.setState({comment})}
+                value={this.state.comment}/>
+               <Icon name='send' onPress={this.addComment}/>
+            </View>
+            <FlatList
+              style={{marginTop:10}}
+              data={this.state.comments}
+              refreshing={this.state.refreshing}
+              renderItem={({item})=><Text>{(item.comment_by==this.state.sessionId)?'Me':item.name_comment_by}: {item.content}</Text>}
+            />
+            </View>
+          </View>
+        </Modal>
+      </View>
+    );
+  }
+
+  checkItem(){
+    item = this.state.item;
+    item.done = !item.done;
+    this.setState({
+      item: item
+    })
+    axios.put(api + `/api/todos/checked/${item.key}`, {done: (this.state.item.done)? 1 : 0 } )
+      .then(this.props.getTodos)
+  }
+
+  pressItem(){
+    this.setState({ modalVisible: true });
+    this.getComments();
+  }
+
+  deleteItem(){
+    axios.delete(api + `/api/todos/${this.state.item.key}`)
+      .then(response => {
+        ToastAndroid.show(response.data.message, ToastAndroid.SHORT);
+        this.setState({modalVisible: false})
+      })
+      .then(this.props.getTodos)
+  }
+
+  updateItem(){
+    item = this.state.item;
+    item.title = this.state.title;
+    item.description = this.state.description;
+    axios.put(api + `/api/todos/${this.state.item.key}`, {title: this.state.title, description: this.state.description})
+      .then(response => {
+        ToastAndroid.show(response.data.message, ToastAndroid.SHORT);
+        this.setState({
+          editable: false,
+          item: item
+        })
+      })
+      .then(this.props.getTodos)
+  }
+
+  addComment(){
+    axios.post(api + `/api/todos/${this.state.item.key}/comments`, {comment_by: this.state.sessionId, content: this.state.comment})
+      .then(response => {
+        ToastAndroid.show(response.data.message, ToastAndroid.SHORT);
+        this.setState({
+          comment: ''
+        })
+      })
+      .then(this.getComments)
+  }
+
+  getComments(){
+    axios.get(api + `/api/todos/${this.state.item.key}/comments`)
+      .then(response => {
+        const comments = response.data;
+      
+        this.setState({
+          refreshing: false,
+          comments: comments.map(function (comment) {
+            return {
+              key: comment.id,
+              content: comment.content,
+              comment_by: comment.comment_by,
+              name_comment_by: comment.name_comment_by
+            }
+          })
+        });
+    })
+  }
+
 }
 
 const styles = StyleSheet.create({
