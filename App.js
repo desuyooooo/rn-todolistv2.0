@@ -11,7 +11,7 @@ import {
 import {PagerTabIndicator, IndicatorViewPager, PagerTitleIndicator, PagerDotIndicator} from 'rn-viewpager';
 import axios from 'axios';
 
-const api = 'http://192.168.254.111:3009';
+const api = 'http://192.168.0.23:3009';
 
 export default class App extends React.Component {
   constructor(props, ctx){
@@ -22,18 +22,22 @@ export default class App extends React.Component {
     this.logoutPress = this.logoutPress.bind(this);
     this.addTodo = this.addTodo.bind(this);
     this.getTodos = this.getTodos.bind(this);
+    this.getLogs = this.getLogs.bind(this);
     this._renderUsers = this._renderUsers.bind(this);
     this._renderMyTodos = this._renderMyTodos.bind(this);
     this._renderTheirTodos = this._renderTheirTodos.bind(this);
+    this._renderLogs = this._renderLogs.bind(this);
+
 
     this.state = {
       sessionId: null,
       modalContent: 'login',
-      modalVisible: false,
+      modalVisible: true,
       username: null,
       password: null,
       todos: [],
       users: [],
+      logs: [],
       refreshing: false,
       title: '',
       description: '',
@@ -165,7 +169,7 @@ export default class App extends React.Component {
           <IndicatorViewPager
               style={{height:600, flexDirection: 'column-reverse'}}
               indicator={this._renderTitleIndicator()}>
-              <View style={{backgroundColor:'cadetblue'}}>
+              <View style={{backgroundColor:'#CFD8DC'}}>
                 <FlatList
                   data={this.state.todos}
                   onRefresh={this.getTodos}
@@ -173,7 +177,7 @@ export default class App extends React.Component {
                   renderItem={this._renderAllTodos.bind(this)}
                   />
               </View>
-              <View style={{backgroundColor:'cornflowerblue'}}>
+              <View style={{backgroundColor:'#90A4AE'}}>
                 <FlatList
                   data={this.state.todos}
                   onRefresh={this.getTodos}
@@ -181,7 +185,7 @@ export default class App extends React.Component {
                   renderItem={this._renderMyTodos}
                   />
               </View>
-              <View style={{backgroundColor:'#1AA094'}}>
+              <View style={{backgroundColor:'#607B8B'}}>
                 <FlatList
                   data={this.state.todos}
                   onRefresh={this.getTodos}
@@ -189,8 +193,13 @@ export default class App extends React.Component {
                   renderItem={this._renderTheirTodos}
                   />
               </View>
-              <View style={{backgroundColor:'#1AA094'}}>
-                <Text>logs</Text>
+              <View style={{backgroundColor:'#455A64', padding: 10}}>
+                <FlatList
+                  data={this.state.logs}
+                  onRefresh={this.getLogs}
+                  refreshing={this.state.refreshing}
+                  renderItem={this._renderLogs}
+                  />
               </View>
           </IndicatorViewPager>
         </View>
@@ -199,18 +208,18 @@ export default class App extends React.Component {
   }
 
   _renderAllTodos({item}){
-    return <Todo item={item} getTodos={this.getTodos} sessionId={this.state.sessionId}/>
+    return <Todo item={item} getTodos={this.getTodos} getLogs={this.getLogs} sessionId={this.state.sessionId}/>
   }
 
   _renderMyTodos({item}){
     if (item.assigned_to === this.state.sessionId){
-        return <Todo item={item} getTodos={this.getTodos} sessionId={this.state.sessionId}/>
+        return <Todo item={item} getTodos={this.getTodos} getLogs={this.getLogs} sessionId={this.state.sessionId}/>
     }
   }
 
   _renderTheirTodos({item}){
     if (item.assigned_by === this.state.sessionId && item.assigned_to !== this.state.sessionId){
-        return <Todo item={item}  getTodos={this.getTodos} sessionId={this.state.sessionId}/>
+        return <Todo item={item}  getTodos={this.getTodos} getLogs={this.getLogs} sessionId={this.state.sessionId}/>
     }
   }
 
@@ -233,6 +242,10 @@ export default class App extends React.Component {
         })
         
       });
+  }
+
+  _renderLogs({item}){
+    return <Text style={{fontSize: 15, color: '#ffffff'}}>{`${item.date_modified}: ${item.name_modified_by} ${item.content}`}</Text>;
   }
 
   validate(username, password) {
@@ -265,6 +278,7 @@ export default class App extends React.Component {
           })
           .catch(err => ToastAndroid.show(err.response.data.error, ToastAndroid.LONG))
           .then(this.getTodos)
+          .then(this.getLogs)
           .then(this._renderUsers)
     }else{
       ToastAndroid.show('Don\'t include special characters!', ToastAndroid.LONG)
@@ -296,7 +310,8 @@ export default class App extends React.Component {
       username: null,
       password: null,
       todos: [],
-      users: []
+      users: [],
+      logs: []
     })
   }
 
@@ -320,8 +335,15 @@ export default class App extends React.Component {
       .catch(err => ToastAndroid.show(err.response.data.error, ToastAndroid.LONG))
       .then(this._renderUsers)
       .then(this.getTodos)
+      //.then(this.createLogs('add'))
   }
-
+  /*
+  createLogs(mode){
+    content = this.state.title;
+    axios.post(api + '/api/todos/logs/insert', {todo_id: this.state.item.key, mode: mode, content: content, modified_by: this.state.sessionId})
+  
+  }
+  */
   getTodos(){
     this.setState({ refreshing: true });
 
@@ -353,6 +375,31 @@ export default class App extends React.Component {
     });
 
   }
+
+
+  getLogs(){
+    axios.post(api + '/api/todos/logs/', {userid: this.state.sessionId})
+      .then(response => {
+        const logs = response.data;
+
+        this.setState({
+          logs: logs.map(function (log){
+            return {
+              key: log.id,
+              todo_id: log.todo_id,
+              mode: log.mode,
+              content: log.content,
+              modified_by: log.modified_by,
+              name_modified_by: log.name_modified_by,
+              date_modified: log.date_modified,
+              title: log.title
+            }
+          })
+        })
+      })
+
+  }
+  
 }
 
 class Todo extends React.Component{
@@ -442,9 +489,6 @@ class Todo extends React.Component{
               value={this.state.description}/>
             <FormLabel>{`ASSIGNED BY: ${this.state.item.name_assigned_by}     ASSIGNED TO: ${this.state.item.name_assigned_to}`}</FormLabel>
             <FormLabel>{`DATE CREATED: ${this.state.item.date_created}`}</FormLabel>
-            {
-            //<FormLabel>{`DATE MODIFIED: ${(this.state.item.date_modified)?this.state.item.date_modified:'N/A'}`}</FormLabel>}
-            }
             <View style={{marginTop: 10, marginBottom: 10}}>
               {content}
             </View>
@@ -478,6 +522,8 @@ class Todo extends React.Component{
     })
     axios.put(api + `/api/todos/checked/${item.key}`, {done: (this.state.item.done)? 1 : 0 } )
       .then(this.props.getTodos)
+      .then(this.createLogs('checked'))
+      .then(this.props.getLogs)
   }
 
   pressItem(){
@@ -486,12 +532,14 @@ class Todo extends React.Component{
   }
 
   deleteItem(){
+    this.createLogs('delete')
     axios.delete(api + `/api/todos/${this.state.item.key}`)
       .then(response => {
         ToastAndroid.show(response.data.message, ToastAndroid.SHORT);
         this.setState({modalVisible: false})
       })
       .then(this.props.getTodos)
+      .then(this.props.getLogs)
   }
 
   updateItem(){
@@ -507,6 +555,8 @@ class Todo extends React.Component{
         })
       })
       .then(this.props.getTodos)
+      .then(this.createLogs('update'))
+      .then(this.props.getLogs)
   }
 
   addComment(){
@@ -518,6 +568,8 @@ class Todo extends React.Component{
         })
       })
       .then(this.getComments)
+      .then(this.createLogs('comment'))
+      .then(this.props.getLogs)
   }
 
   getComments(){
@@ -538,6 +590,25 @@ class Todo extends React.Component{
         });
     })
   }
+
+  createLogs(mode){
+    switch(mode){
+      case 'update':
+        content = `updated ${this.state.item.title}.`;
+        break;
+      case 'delete':
+        content = `deleted ${this.state.item.title}.`;
+        break;
+      case 'comment':
+        content =  `commented on ${this.state.item.title}.`;
+        break;
+      case 'checked':
+        content = `finished ${this.state.item.title}.`;
+        break;
+    }
+    axios.post(api + '/api/todos/logs/insert', {todo_id: this.state.item.key, mode: mode, content: content, modified_by: this.state.sessionId, assigned_by: this.state.item.assigned_by, assigned_to: this.state.item.assigned_to})
+  
+}
 
 }
 
