@@ -1,5 +1,12 @@
 # Midterm Project - TodoList v2.0
 
+Group Laurel:
+- Averos, Christian
+- Becbec, Wilmarie Faye
+- De Guzman, John Rez
+- Delicano, Jobea Ann
+- Laurel, Kamille Rose
+
 ## Application
 
 ```
