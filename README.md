@@ -32,6 +32,7 @@ mysql -u [username] -p
 CREATE DATABASE [database name];
 exit
 mysql -u [username] -p [database name] < todolist.sql
+exit
 node index.js
 ```
 ### TABLES
